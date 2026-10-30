@@ -1,5 +1,7 @@
  # AI-Based DevOps Monitoring System
 
+LIVE LINK = https://ai-devops-monitor-rfsr.onrender.com/
+
 A real-time monitoring platform that watches **infrastructure** (CPU, memory, disk, network) and **applications / websites** (availability, latency), detects anomalies with **machine learning**, **predicts failures before they happen**, explains the **root cause** and recommends a **solution** for every alert.
 
 ## 1. Problem statement
