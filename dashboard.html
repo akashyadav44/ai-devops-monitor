@@ -1,0 +1,226 @@
+ <!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI DevOps Monitor</title>
+<style>
+:root{--bg:#0b1020;--panel:#131a2e;--panel2:#18213a;--line:#25304f;--txt:#e6ebff;--mut:#8b97c3;
+--ok:#22c55e;--warn:#f59e0b;--crit:#ef4444;--cpu:#38bdf8;--mem:#a78bfa;--disk:#fbbf24;--net:#34d399;--ai:#f472b6}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:radial-gradient(1200px 600px at 10% -10%,#1a2350 0,transparent 60%),var(--bg);color:var(--txt);
+font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 22px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+h1{font-size:19px;font-weight:700;letter-spacing:.2px}
+h1 span{color:var(--ai)}
+.sub{color:var(--mut);font-size:12px}
+.pill{padding:5px 12px;border-radius:99px;font-weight:600;font-size:12px;border:1px solid}
+.pill.healthy{color:var(--ok);border-color:var(--ok);background:#22c55e18}
+.pill.warning{color:var(--warn);border-color:var(--warn);background:#f59e0b18}
+.pill.critical{color:var(--crit);border-color:var(--crit);background:#ef444418;animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.55}}
+main{padding:18px 22px;display:grid;gap:16px;grid-template-columns:repeat(12,1fr)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.card h3{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--mut);margin-bottom:10px;font-weight:600}
+.health{grid-column:span 3;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.gauge{width:150px;height:150px;border-radius:50%;display:grid;place-items:center;
+background:conic-gradient(var(--c,#22c55e) calc(var(--p,0)*1%),#25304f 0)}
+.gauge div{width:116px;height:116px;border-radius:50%;background:var(--panel);display:grid;place-items:center;text-align:center}
+.gauge b{font-size:34px;line-height:1}.gauge small{color:var(--mut);font-size:11px}
+.kpis{grid-column:span 9;display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.kpi .v{font-size:30px;font-weight:700}.kpi .v small{font-size:13px;color:var(--mut);font-weight:500}
+.kpi .l{color:var(--mut);font-size:12px}
+.bar{height:6px;background:#25304f;border-radius:9px;margin-top:10px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:9px;transition:width .6s}
+.chart{grid-column:span 6}
+.chart .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.chart .hd h3{margin:0}
+canvas{width:100%;height:170px;display:block}
+.chip{font-size:11px;padding:2px 8px;border-radius:99px;background:#25304f;color:var(--mut)}
+.chip.w{background:#f59e0b22;color:var(--warn)}.chip.c{background:#ef444422;color:var(--crit)}
+.legend{font-size:11px;color:var(--mut);margin-top:4px}
+.legend b{display:inline-block;width:10px;height:3px;vertical-align:middle;margin:0 4px 0 10px;border-radius:2px}
+.ai{grid-column:span 7;border-color:#f472b655;background:linear-gradient(180deg,#1b1530,var(--panel))}
+.sim{grid-column:span 5}
+.alerts{grid-column:span 7}.procs{grid-column:span 5}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td,th{padding:6px 4px;text-align:left;border-bottom:1px solid var(--line)}
+th{color:var(--mut);font-weight:600;font-size:11px;text-transform:uppercase}
+.insight{background:#0b1020aa;border:1px dashed #f472b688;border-radius:10px;padding:10px 12px;margin-top:12px}
+.insight .t{font-weight:700;color:var(--ai)}
+.insight.none{border-color:var(--line);color:var(--mut)}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+button{background:var(--panel2);color:var(--txt);border:1px solid var(--line);padding:9px 12px;border-radius:9px;cursor:pointer;font-weight:600;font-size:13px}
+button:hover{border-color:var(--ai)}button.r{border-color:var(--ok)}
+.alert{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
+.alert time{color:var(--mut);min-width:58px}
+.lv{font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;height:max-content;text-transform:uppercase}
+.lv.critical{background:#ef444430;color:var(--crit)}.lv.warning{background:#f59e0b30;color:var(--warn)}.lv.info{background:#38bdf830;color:var(--cpu)}
+select{background:var(--panel2);color:var(--txt);border:1px solid var(--line);padding:9px 10px;border-radius:9px;font-size:13px;max-width:210px}
+input{background:var(--panel2);color:var(--txt);border:1px solid var(--line);padding:9px 12px;border-radius:9px;font-size:13px}
+.st{font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;text-transform:uppercase}
+.st.up{background:#22c55e22;color:var(--ok)}.st.degraded{background:#f59e0b22;color:var(--warn)}
+.st.down{background:#ef444422;color:var(--crit);animation:pulse 1s infinite}.st.unknown{background:#25304f;color:var(--mut)}
+td button{padding:4px 9px;font-size:12px;margin-right:4px}
+.model{font-size:12px;color:var(--mut);margin-top:10px}
+.empty{color:var(--mut);padding:10px 0}
+@media(max-width:1000px){.health,.kpis,.chart,.ai,.sim,.alerts,.procs{grid-column:span 12}.kpis{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<header>
+  <div><h1><span>AI</span>-Based DevOps Monitoring System</h1>
+  <div class="sub" id="host">Real-time monitoring · Anomaly detection · Failure prediction</div></div>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><select id="demoTarget" title="Service used for the DOWN / SLOW demo steps"><option value="">Demo on: built-in services</option></select><button id="demoBtn" onclick="toggleDemo()" style="border-color:var(--ai)">▶ Auto Demo</button><button type="button" onclick="downloadReport()">⬇ Download PDF Report</button><span class="sub" id="clock"></span><span class="pill healthy" id="status">Starting…</span></div>
+</header>
+<div id="demoBanner" style="display:none;margin:14px 22px 0;padding:14px 18px;border-radius:14px;border:1px solid #f472b6;background:linear-gradient(90deg,#2a1640,#131a2e)">
+  <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><b id="dTitle" style="font-size:16px"></b><span class="chip" id="dStep"></span></div>
+  <div id="dSay" style="margin-top:6px;font-size:15px"></div>
+  <div class="bar"><i id="dBar" style="background:var(--ai);width:0"></i></div></div>
+<main>
+  <div class="card health"><h3>System Health</h3>
+    <div class="gauge" id="gauge"><div><span><b id="hs">--</b><br><small>/ 100</small></span></div></div>
+    <div class="model" id="model" style="text-align:center"></div></div>
+  <div class="kpis">
+    <div class="card kpi"><div class="l">CPU</div><div class="v" id="k-cpu">--<small>%</small></div><div class="bar"><i id="b-cpu" style="background:var(--cpu)"></i></div></div>
+    <div class="card kpi"><div class="l">Memory</div><div class="v" id="k-mem">--<small>%</small></div><div class="bar"><i id="b-mem" style="background:var(--mem)"></i></div></div>
+    <div class="card kpi"><div class="l">Disk</div><div class="v" id="k-disk">--<small>%</small></div><div class="bar"><i id="b-disk" style="background:var(--disk)"></i></div></div>
+    <div class="card kpi"><div class="l">Network</div><div class="v" id="k-net">--<small> KB/s</small></div><div class="l" id="k-dio" style="margin-top:10px">Disk I/O -- MB/s</div></div>
+  </div>
+
+  <div class="card" style="grid-column:span 12"><h3>🛰 Monitored Services — application health (HTTP checks every 3 s)</h3>
+    <table><thead><tr><th>Service</th><th>Endpoint</th><th>Status</th><th>Latency</th><th>Uptime</th><th>Latency trend</th><th>Simulate failure</th></tr></thead><tbody id="svc"></tbody></table>
+    <form onsubmit="addSvc(event)" style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <input id="sn" placeholder="Service name" required style="width:160px">
+      <input id="su" placeholder="https://your-website.com  (any real URL)" required style="flex:1;min-width:220px">
+      <input id="st" type="number" placeholder="Slow if &gt; ms (1000)" style="width:150px">
+      <button type="submit">＋ Monitor this URL</button></form></div>
+
+  <div class="card chart"><div class="hd"><h3>CPU usage</h3><span class="chip" id="e-cpu">forecast…</span></div><canvas id="c-cpu"></canvas></div>
+  <div class="card chart"><div class="hd"><h3>Memory usage</h3><span class="chip" id="e-mem">forecast…</span></div><canvas id="c-mem"></canvas></div>
+  <div class="card chart"><div class="hd"><h3>Disk usage</h3><span class="chip" id="e-disk">forecast…</span></div><canvas id="c-disk"></canvas></div>
+  <div class="card chart"><div class="hd"><h3>Network traffic (KB/s)</h3><span class="chip">anomaly detection on</span></div><canvas id="c-net"></canvas>
+    <div class="legend"><b style="background:#fff"></b>actual<b style="background:var(--ai)"></b>AI forecast<b style="background:var(--crit)"></b>anomaly / threshold</div></div>
+
+  <div class="card ai"><h3>🧠 AI Predictions &amp; Insights</h3>
+    <table><thead><tr><th>Metric</th><th>Trend / min</th><th>Time to 90%</th><th>Confidence</th><th>Status</th></tr></thead><tbody id="pred"></tbody></table>
+    <div class="insight none" id="insight">Learning baseline… (model needs ~80 s of data)</div></div>
+  <div class="card sim"><h3>⚡ Incident Simulator (for demo)</h3>
+    <div class="sub" style="margin-bottom:10px">Inject a failure and watch the AI detect &amp; predict it live.</div>
+    <div class="btns">
+      <button onclick="sim('cpu_spike')">🔥 CPU Spike</button>
+      <button onclick="sim('memory_leak')">💧 Memory Leak</button>
+      <button onclick="sim('disk_fill')">💽 Disk Filling</button>
+      <button onclick="sim('net_flood')">🌐 Traffic Flood</button>
+      <button class="r" onclick="fetch('/api/reset')">✔ Reset</button></div>
+    <div class="model" id="simst"></div></div>
+
+  <div class="card alerts"><h3>🔔 Alerts</h3><div id="alerts"><div class="empty">No alerts yet</div></div></div>
+  <div class="card procs"><h3>Top Processes</h3>
+    <table><thead><tr><th>PID</th><th>Name</th><th>CPU%</th><th>MEM%</th></tr></thead><tbody id="procs"></tbody></table></div>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+const COL={cpu:'#38bdf8',mem:'#a78bfa',disk:'#fbbf24',net:'#34d399'};
+function sim(k){fetch('/api/simulate/'+k)}
+let demoOn=false;
+function toggleDemo(){fetch(demoOn?'/api/demo/stop':'/api/demo/start?target='+encodeURIComponent($('demoTarget').value))}
+async function downloadReport(){
+  try{const r=await fetch('/api/report.pdf');if(!r.ok)throw new Error('HTTP '+r.status);
+    const b=await r.blob(),u=URL.createObjectURL(b),a=document.createElement('a');
+    a.href=u;a.download='devops-monitoring-report.pdf';document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(u),3000)}
+  catch(e){alert('Could not download the report: '+e.message)}}
+const esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+let tgtNames='';
+function syncTargets(list){const names=list.map(v=>v.name).join('|');if(names===tgtNames)return;tgtNames=names;
+  const sel=$('demoTarget'),cur=sel.value;
+  sel.innerHTML='<option value="">Demo on: built-in services</option>'+list.map(v=>`<option value="${esc(v.name)}">Demo on: ${esc(v.name)}</option>`).join('');
+  sel.value=cur}
+let dStepLen={};
+function renderDemo(d){demoOn=!!(d&&d.running);
+  $('demoBtn').textContent=demoOn?'■ Stop Demo':'▶ Auto Demo';
+  $('demoBanner').style.display=demoOn?'block':'none';$('demoTarget').disabled=demoOn;
+  if(!demoOn)return;
+  $('dTitle').textContent=d.title;$('demoTarget').disabled=true;$('dSay').textContent='🗣 '+d.say;
+  $('dStep').textContent='Step '+d.step+' / '+d.total+' · '+d.left+'s';
+  if(!dStepLen[d.step]||d.left>dStepLen[d.step])dStepLen[d.step]=d.left;
+  $('dBar').style.width=(100*(1-d.left/dStepLen[d.step]))+'%'}
+function svcSim(k,m){fetch('/api/svc_sim/'+encodeURIComponent(k)+'/'+m)}
+async function addSvc(e){e.preventDefault();
+  await fetch('/api/services',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:$('sn').value,url:$('su').value,thr:$('st').value})});
+  $('sn').value='';$('su').value='';$('st').value=''}
+function spark(a,color){if(a.length<2)return'';const mx=Math.max(300,...a),w=110,h=26;
+  const pts=a.map((v,i)=>`${(i/(a.length-1)*w).toFixed(1)},${(h-(v/mx)*h).toFixed(1)}`).join(' ');
+  return`<svg width="${w}" height="${h}"><polyline fill="none" stroke="${color}" stroke-width="1.6" points="${pts}"/></svg>`}
+
+function draw(cv,data,fc,anom,thr,color,max){
+  const dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;
+  cv.width=W*dpr;cv.height=H*dpr;const c=cv.getContext('2d');c.scale(dpr,dpr);
+  const L=34,R=8,T=8,B=16,w=W-L-R,h=H-T-B,N=Math.max(data.length+(fc?fc.length:0),2);
+  const X=i=>L+i/(N-1)*w,Y=v=>T+(1-Math.min(v,max)/max)*h;
+  c.font='10px system-ui';c.fillStyle='#8b97c3';c.strokeStyle='#25304f';c.lineWidth=1;
+  for(let g=0;g<=4;g++){const v=max*g/4,y=Y(v);c.beginPath();c.moveTo(L,y);c.lineTo(W-R,y);c.stroke();c.fillText(Math.round(v),2,y+3)}
+  if(thr){c.strokeStyle='#ef4444';c.setLineDash([5,4]);c.beginPath();c.moveTo(L,Y(thr));c.lineTo(W-R,Y(thr));c.stroke();c.setLineDash([])}
+  if(!data.length)return;
+  const gr=c.createLinearGradient(0,T,0,T+h);gr.addColorStop(0,color+'55');gr.addColorStop(1,color+'00');
+  c.beginPath();c.moveTo(X(0),Y(data[0]));data.forEach((v,i)=>c.lineTo(X(i),Y(v)));
+  c.lineTo(X(data.length-1),T+h);c.lineTo(X(0),T+h);c.closePath();c.fillStyle=gr;c.fill();
+  c.beginPath();data.forEach((v,i)=>i?c.lineTo(X(i),Y(v)):c.moveTo(X(i),Y(v)));c.strokeStyle=color;c.lineWidth=2;c.stroke();
+  if(fc&&fc.length){const s=data.length-1;c.beginPath();c.moveTo(X(s),Y(data[s]));
+    fc.forEach((v,i)=>c.lineTo(X(s+1+i),Y(v)));c.strokeStyle='#f472b6';c.setLineDash([6,4]);c.lineWidth=2;c.stroke();c.setLineDash([]);
+    c.strokeStyle='#ffffff30';c.beginPath();c.moveTo(X(s),T);c.lineTo(X(s),T+h);c.stroke();c.fillStyle='#f472b6';c.fillText('AI forecast →',X(s)+6,T+10)}
+  anom.forEach((a,i)=>{if(a){c.fillStyle='#ef4444';c.beginPath();c.arc(X(i),Y(data[i]),4,0,7);c.fill()}});
+}
+
+function chip(el,p){
+  if(!p){el.textContent='learning…';el.className='chip';return}
+  if(p.status==='critical'){el.textContent='CRITICAL';el.className='chip c'}
+  else if(p.eta_min!==null){el.textContent='hits 90% in ~'+p.eta_min+' min';el.className='chip '+(p.eta_min<10?'w':'')}
+  else{el.textContent='stable ✓';el.className='chip'}
+}
+
+async function tick(){
+  let s;try{s=await (await fetch('/api/state')).json()}catch(e){return}
+  if(!s.ready)return;
+  syncTargets(s.services||[]);renderDemo(s.demo);
+  const cur=s.current,se=s.series,pr=s.predictions;
+  $('clock').textContent=new Date().toLocaleTimeString();
+  $('host').textContent='Host: '+s.host+' · Real-time monitoring · Anomaly detection · Failure prediction';
+  const st=$('status');st.textContent=s.status.toUpperCase();st.className='pill '+s.status;
+  const g=$('gauge');g.style.setProperty('--p',s.health);
+  g.style.setProperty('--c',s.health<50?'#ef4444':s.health<80?'#f59e0b':'#22c55e');$('hs').textContent=s.health;
+  const m=s.model;$('model').innerHTML=m.trained?`Model trained on ${m.samples} samples<br>at ${m.trained_at}`:`Collecting data ${m.buffer}/${m.need}…`;
+  for(const k of ['cpu','mem','disk']){
+    $('k-'+k).innerHTML=cur[k].toFixed(1)+'<small>%</small>';
+    const b=$('b-'+k);b.style.width=cur[k]+'%';if(cur[k]>=90)b.style.background='var(--crit)'}
+  $('k-net').innerHTML=cur.net.toFixed(0)+'<small> KB/s</small>';$('k-dio').textContent='Disk I/O '+cur.disk_io.toFixed(1)+' MB/s';
+  draw($('c-cpu'),se.cpu,pr.cpu&&pr.cpu.forecast,se.anom,90,COL.cpu,100);
+  draw($('c-mem'),se.mem,pr.mem&&pr.mem.forecast,se.anom,90,COL.mem,100);
+  draw($('c-disk'),se.disk,pr.disk&&pr.disk.forecast,se.anom,90,COL.disk,100);
+  draw($('c-net'),se.net,null,se.anom,null,COL.net,Math.max(200,...se.net)*1.25);
+  chip($('e-cpu'),pr.cpu);chip($('e-mem'),pr.mem);chip($('e-disk'),pr.disk);
+  $('pred').innerHTML=['cpu','mem','disk'].map(k=>{const p=pr[k];if(!p)return`<tr><td>${k.toUpperCase()}</td><td colspan=4>learning…</td></tr>`;
+    const col=p.status==='critical'?'var(--crit)':p.status==='warning'?'var(--warn)':'var(--ok)';
+    return`<tr><td><b>${k.toUpperCase()}</b></td><td>${p.slope_per_min>0?'+':''}${p.slope_per_min}%</td><td>${p.eta_min===null?'—':p.eta_min+' min'}</td><td>${Math.round(p.confidence*100)}%</td><td style="color:${col};font-weight:700">${p.status.toUpperCase()}</td></tr>`}).join('');
+  $('svc').innerHTML=(s.services||[]).map(v=>{
+    const col=v.status==='up'?'#22c55e':v.status==='degraded'?'#f59e0b':v.status==='down'?'#ef4444':'#8b97c3';
+    const id=esc(v.key||v.name);
+    const btn=`<button data-id="${id}" onclick="svcSim(this.dataset.id,'slow')">🐢 Slow</button><button data-id="${id}" onclick="svcSim(this.dataset.id,'down')">⛔ Down</button><button class="r" data-id="${id}" onclick="svcSim(this.dataset.id,'normal')">✔ Heal</button>`;
+    const p=v.phases||{};
+    const info=`<span class="sub">🟢 Monitoring active · ${v.checks} checks · last check ${v.age===null?'—':v.age+'s ago'} · alert if &gt; ${v.thr} ms${v.cert_days!==null&&v.cert_days!==undefined?' · SSL valid '+v.cert_days+' days':''}</span>`;
+    const ph=v.checks&&v.latency!==null?`<div class="sub" style="margin-top:3px">⏱ DNS ${p.dns} · Connect ${p.connect} · TLS ${p.tls} · Server wait ${p.server} · Download ${p.download} ms · ${v.size_kb} KB · compression ${v.compressed?'on':'OFF'} · redirects ${v.redirects}</div>`:'';
+    const dg=v.diag?`<div style="margin-top:6px;padding:8px 10px;border-left:3px solid ${v.status==='down'?'var(--crit)':'var(--warn)'};background:#0b1020aa;border-radius:6px"><b>🔍 Reason:</b> ${v.diag.reason}<br><b style="color:var(--ok)">💡 Solution:</b> ${v.diag.fix}</div>`:'';
+    return`<tr><td><b>${esc(v.name)}</b>${v.key?'':' <span class="chip">real URL</span>'}</td><td class="sub">${esc(v.url.replace('127.0.0.1','localhost'))}</td><td><span class="st ${v.status}">${v.status}</span>${v.sim?' <span class="chip w">SIMULATED '+v.sim+'</span>':''}</td><td>${v.latency===null?'—':v.latency.toFixed(0)+' ms'}</td><td>${v.uptime}%</td><td>${spark(v.series,col)}</td><td>${btn}</td></tr><tr><td colspan="7" style="padding:2px 4px 10px">${info}${ph}${dg}</td></tr>`}).join('');
+  const ib=$('insight'),i=s.insight;
+  if(i){ib.className='insight';ib.innerHTML=`<div class="t">${i.type==='anomaly'?'⚠ Anomaly detected':i.type==='service'?'🛰 Service incident':'🔮 Failure predicted'}: ${i.cause}${i.recent?' <span class="chip">recent</span>':''}</div><div>${i.detail}</div><div style="margin-top:8px;padding:8px 10px;background:#22c55e18;border-left:3px solid var(--ok);border-radius:6px"><b>💡 Recommended solution:</b> ${i.action}</div>`}
+  else{ib.className='insight none';ib.textContent=m.trained?'✅ All systems normal — no anomalies, no predicted failures.':'Learning baseline… (model needs ~80 s of data)'}
+  $('simst').textContent=s.sim?'Active incident: '+s.sim.replace('_',' '):'No simulated incident running.';
+  $('alerts').innerHTML=s.alerts.length?s.alerts.slice(0,8).map(a=>`<div class="alert"><time>${a.time}</time><span class="lv ${a.level}">${a.level}</span><span>${a.msg}${a.action?`<div style="color:var(--ok);margin-top:3px;font-size:12px">💡 Fix: ${a.action}</div>`:''}</span></div>`).join(''):'<div class="empty">No alerts yet</div>';
+  $('procs').innerHTML=s.procs.map(p=>`<tr><td>${p.pid}</td><td>${p.name}</td><td>${p.cpu}</td><td>${p.mem}</td></tr>`).join('');
+}
+tick();setInterval(tick,2000);
+</script>
+</body>
+</html>
